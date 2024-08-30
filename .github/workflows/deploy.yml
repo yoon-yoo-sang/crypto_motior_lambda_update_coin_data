@@ -1,0 +1,45 @@
+name: Deploy to AWS Lambda
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Build Docker image
+      run: docker build -t my-lambda-function .
+
+    - name: Push Docker image to ECR
+      run: |
+        aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 812695313662.dkr.ecr.ap-northeast-2.amazonaws.com
+        docker tag my-lambda-function:latest 812695313662.dkr.ecr.ap-northeast-2.amazonaws.com/my-lambda-function:latest
+        docker push 812695313662.dkr.ecr.ap-northeast-2.amazonaws.com/my-lambda-function:latest
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: 'ap-northeast-2'
+
+    - name: Deploy to AWS Lambda
+      run: |
+        aws lambda update-function-code --function-name my-lambda-function --image-uri 812695313662.dkr.ecr.ap-northeast-2.amazonaws.com/my-lambda-function:latest
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: 'ap-northeast-2'
